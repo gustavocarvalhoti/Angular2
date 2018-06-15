@@ -1,0 +1,459 @@
+********************************************************************************
+#(Backend) que utilizei roda em node.js
+cd C:\Users\GUSTAVO\Documents\Courses\Angular2\alurapic\server
+npm start
+
+********************************************************************************
+#(Frontend -> Consume um rest)
+cd C:\Users\GUSTAVO\Documents\Courses\Angular2\alurapic\client
+npm install <- Baixa as dependencias
+npm start
+
+********************************************************************************
+#O Front do Angular roda em node.js
+[file ->package.json] <- Guarda as libs que iremos utilizar, as dependências
+
+********************************************************************************
+#Criando um componente principal
+[file ->app.component.ts]
+import {Component} from '@angular/core';
+/*Decorator - TypeScript da Microsoft (Linguagem que tem o transcompilador para ES6)*/
+@Component({
+    selector: 'app', /*Nome do componente*/
+    templateUrl: './app/app.component.html'
+})
+export class AppComponent {}
+
+[file ->app.component.hmtl]
+<div class="jumbotron">
+    <h1 class="text-center">Alurapic</h1>
+</div>
+<div class="container">
+    <img class="img-responsive center-block" src="img/leao.jpg" alt="leão">
+</div>
+
+[file ->index.html]
+Chama o componente assim: <app></app>
+
+********************************************************************************
+#Criando outros componentes/modulos
+[file ->foto.component.ts]
+import {Component} from '@angular/core';
+@Component({
+    moduleId: module.id,
+    selector: 'foto', /*Nome do componente*/
+    templateUrl: './foto.component.html'
+})
+export class FotoComponent {
+}
+[file ->foto.modules.ts]
+import {NgModule} from '@angular/core';
+import {FotoComponent} from './foto.component';
+@NgModule({
+    declarations: [FotoComponent],
+    exports: [FotoComponent], /*Para ser utilizado por outros modulos*/
+})
+export class FotoModule {
+}
+
+********************************************************************************
+#Rerponsável por importa os modulos -> systemjs.config.js
+Ele Importa os modulos e chama o main.ts <- Ele é um loader
+
+[file ->index.html]
+<script src="systemjs.config.js"></script>
+<script>
+    System.import('app').catch(function(err){ console.error(err); });
+</script>
+
+[file ->systemjs.config.js] -> Ele chama o main que importa os modulos
+packages: {
+app: {
+  main: './main.js',
+  defaultExtension: 'js'
+}}
+
+[file ->main.ts]
+import {platformBrowserDynamic} from '@angular/platform-browser-dynamic';
+import {AppModule} from './app.module';
+/*Carrega o primeiro modula da app*/
+const platform = platformBrowserDynamic();
+platform.bootstrapModule(AppModule);
+
+[file ->app,module.ts]
+import {NgModule} from '@angular/core';
+/*Para rodar no navegador*/
+import {BrowserModule} from '@angular/platform-browser';
+/*app.component -> O que eu quero importar*/
+import {AppComponent} from './app.component';
+@NgModule({
+    imports: [BrowserModule],
+    declarations: [AppComponent],
+    bootstrap: [AppComponent], /*Primeiro a ser carregado*/
+})
+export class AppModule {
+}
+
+********************************************************************************
+#Atalhos npm
+[file ->package.json]
+Quando eu digito npm start ele executa npm run tsc:w <- Para executar o transcompilador
+"scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "tsc:w": "tsc -w",
+    "start": "npm run tsc:w",
+    "typings": "typings"
+}
+
+********************************************************************************
+#Utilizando path relativo, trabalhando melhor com os caminhos de arquivos
+[file ->foto.component.ts]
+moduleId: module.id
+
+********************************************************************************
+#Passando parametros entre componentes
+#Enviando ->
+[file ->app.component.html]
+<div class="jumbotron">
+    <h1 class="text-center">Alurapic</h1>
+</div>
+<div class="container">
+    <!--Passa os parametros-->
+    <foto url="img/leao.jpg" titulo="Leão"></foto>
+    <foto url="img/leao-branco.jpg" titulo="Leão Branco"></foto>
+</div>
+#Recebendo ->
+[file ->foto.component.ts]
+export class FotoComponent {
+    @Input() titulo;
+    @Input() url;
+}
+[file ->foto.component.html]
+<img class="img-responsive center-block" [src]="url" [alt]="titulo">
+<!--Dá para fazer assim tb-->
+<img class="img-responsive center-block" src="{{url}}" alt="{{titulo}}">
+
+********************************************************************************
+#Fazendo um get
+#[file ->app.modules.ts] Importar o http
+imports: [BrowserModule, FotoModule, HttpModule],
+#Fazendo o get
+#[file ->app.component.ts]
+import {Http} from '@angular/http';
+    constructor(http: Http) {
+        let stream = http.get('http://localhost:3000/v1/fotos');
+        // Quando receber os valores do get (Promise)
+        stream.subscribe(res => {
+            this.fotos = res.json();
+        });
+
+        /*Melhor assim:*/
+        http.get('http://localhost:3000/v1/fotos')
+            .map(res => res.json()) /*Faz o cast de resposta para JSON*/
+            .subscribe(resFotos => {
+                this.fotos = resFotos;
+            }, erro => console.log("Deu erro! " + erro));
+    }
+}
+
+#Fazendo um post [file -> cadastro.component.ts]
+import {Http, Headers} from '@angular/http';
+...
+http: Http;
+constructor(http: Http) {
+    this.http = http;
+}
+cadastrar(event) {
+    /*$event: para fazer o load só do form*/
+    event.preventDefault();
+    console.log(this.foto);
+
+    var headers = new Headers();
+    headers.append('Content-Type', 'application/json');
+    /*Enviar como JSON*/
+    this.http
+        .post(
+            'v1/fotos',
+            JSON.stringify(this.foto),
+            {headers: headers}
+        )
+        .subscribe(() => {
+            console.log('Cadastrado com sucesso!');
+            this.foto = new FotoComponent();
+        }, erro => console.log("Deu erro! " + erro));
+}
+
+********************************************************************************
+#Utilizado o map como retorno
+Importar no modulo principal -> app.modules.ts
+import 'rxjs/add/operator/map';
+#[file ->app.component.ts]
+http.get('http://localhost:3000/v1/fotos')
+    .map(res => res.json()) /*Faz o cast de resposta para JSON*/
+    .subscribe(resFotos => {
+        this.fotos = resFotos;
+        console.log(this.fotos);
+    }, erro => console.log("Deu erro! " + erro));
+
+********************************************************************************
+#For top - [file ->app.component.html]
+<div class="jumbotron">
+    <h1 class="text-center">Alurapic</h1>
+</div>
+<div class="container">
+    <!--
+    <foto *ngFor="let foto of fotos"
+          url="{{foto.url}}"
+          titulo="{{foto.ti}}">
+    </foto>
+    -->
+    <foto *ngFor="let foto of fotos"
+          [url]="foto.url"
+          [titulo]="foto.titulo">
+    </foto>
+</div>
+
+********************************************************************************
+#Enviar HTML entre os modulos
+[file ->app.component.html -> Enviar] -> Envia a <foto> para o painel
+<painel *ngFor="let foto of fotos" [titulo]="foto.titulo" class="col-md-2">
+    <foto [url]="foto.url"
+          [titulo]="foto.titulo">
+    </foto>
+</painel>
+[file ->painel.component.html -> Receber] -> Recebe a <foto>
+<div class="panel-body">
+    <ng-content></ng-content> <- Recebe e exibe a foto
+</div>
+
+********************************************************************************
+#Criando rotas
+[file ->app.routes.ts]
+import {RouterModule, Routes} from '@angular/router';
+import {CadastroComponent} from './cadastro/cadastro.component';
+import {ListagemComponent} from './listagem/listagem.component';
+/*Array vazio do tipo Routes, classificando as rotas*/
+const appRoutes: Routes = [
+    {path: '', component: ListagemComponent},
+    {path: 'cadastro', component: CadastroComponent},
+    {path: '**', component: ListagemComponent}, /*Famoso else*/
+];
+// Compilação das rotas pronto para ser usado
+export const routing = RouterModule.forRoot(appRoutes);
+[file ->app.module.ts] -> Não esqueça de importar ele
+
+********************************************************************************
+#Router link -> Não recarrega a página -> [file ->listagem.component.html]
+<a [routerLink]="['/cadastro']" class="btn btn-primary">Nova foto</a>
+
+********************************************************************************
+#Variavel local HTML utilizando um filter no ngFor
+[file ->listagem.component.html]
+<!-- campo para filtrar pelo titulo -->
+<input #textoProcurado <- Variavel local no HTML
+       (keyup)="0"
+       class="form-control"
+       placeholder="filtrar pelo título da foto">
+***
+<painel *ngFor="let foto of fotos | filtroPorTitulo: textoProcurado.value"
+        titulo="{{foto.titulo | uppercase}}"
+        class="col-md-2">
+    <foto [url]="foto.url" [titulo]="foto.titulo"></foto>
+</painel>
+
+#Criando a classe do filter [file ->foto.pipes.ts]
+import {FotoComponent} from './foto.component';
+import {Pipe, PipeTransform} from '@angular/core';
+@Pipe({ name: 'filtroPorTitulo' })
+export class FiltroPorTitulo implements PipeTransform {
+    /*Recebe a lista de fotos e o digitado*/
+    transform(fotos: FotoComponent[], digitado: string) {
+        /*Faz o filtro*/
+        return fotos.filter(
+            foto => foto.titulo.toLowerCase().includes(digitado.toLowerCase())
+        );
+    }
+}
+
+#Adiciona no modulo foto [file -> foto.module.ts]
+import {FiltroPorTitulo} from './foto.pipes';
+@NgModule({
+    declarations: [
+        FotoComponent,
+        FiltroPorTitulo],
+    exports: [/*Para ser utilizado por outros modulos*/
+        FotoComponent,
+        FiltroPorTitulo],
+})
+export class FotoModule {
+}
+
+********************************************************************************
+#Utilizando forms
+[file ->app.module.ts ->Importar o FormsModule]
+import {FormsModule} from '@angular/forms';
+imports: [/*Modules*/
+    ..., FormsModule
+],
+
+[file ->cadastro.component.html -> Preencher o form]
+<!--$event: para fazer o load só do form-->
+<form class="row" (submit)="cadastrar($event)">
+    <div class="col-md-6">
+        <div class="form-group">
+            <label>Título</label>
+            <!--Quando fizer o input ele atualiza o foto.titulo-->
+            <!--(input)="foto.titulo = $event.target.value"-->
+            <!--[value]="foto.titulo -> Variavel que guarda as info"-->
+            <!--<input (input)="foto.titulo = $event.target.value"
+                   [value]="foto.titulo"
+                   class="form-control"
+                   autocomplete="off">-->
+            <!--Fazendo melhor-->
+            <input name="titulo"
+                   [(ngModel)]="foto.titulo"
+                   class="form-control"
+                   autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label>URL</label>
+            <input name="url"
+                   [(ngModel)]="foto.url"
+                   class="form-control"
+                   autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label>Descrição</label>
+            <textarea name="descricao"
+                      [(ngModel)]="foto.descricao"
+                      class="form-control"
+                      autocomplete="off">
+            </textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">
+            Salvar
+        </button>
+        <a [routerLink]="['']" class="btn btn-primary">Voltar</a>
+        <hr>
+    </div>
+</form>
+
+[file ->cadastro.component.ts ->Receber as informações e fazer o post]
+import {Component} from '@angular/core';
+import {FotoComponent} from '../foto/foto.component';
+@Component({
+    moduleId: module.id,
+    selector: 'cadastro',
+    templateUrl: './cadastro.component.html'
+})
+export class CadastroComponent {
+    foto: FotoComponent = new FotoComponent();
+    constructor() {
+        this.foto.url = "";
+        this.foto.titulo = "";
+        this.foto.descricao = "";
+    }
+    cadastrar(event) {
+        /*$event: para fazer o load só do form*/
+        event.preventDefault();
+        console.log(this.foto);
+    }
+}
+
+********************************************************************************
+#Limitar o tamanho do texto exibido
+import {Component, Input, OnInit} from '@angular/core';
+@Component({
+    ...
+})
+export class PainelComponent implements OnInit {
+    @Input() titulo: string;
+    // Carrega depois do @Input() titulo: string;
+    ngOnInit() {
+        /*Limita o tamanho do titulo a 7 caracteres o máximo e coloca o ...*/
+        this.titulo = this.titulo.length > 7
+            ? this.titulo.substr(0, 7) + '...'
+            : this.titulo;
+    }
+}
+
+********************************************************************************
+#Validação no Front
+<form #meuForm="ngForm" class="row" (submit)="cadastrar($event)">
+...
+<input required
+       #titulo="ngModel"
+       name="titulo"
+       [(ngModel)]="foto.titulo"
+       class="form-control"
+       autocomplete="off">
+<span *ngIf="titulo.invalid" class="form-control alert-danger">
+    Título obrigatório
+</span>
+...
+<button type="submit" class="btn btn-primary" [disabled]="meuForm.form.invalid">
+    Salvar
+</button>
+
+#Validação no module
+[file ->app.module.ts - add]
+import {FormsModule, ReactiveFormsModule} from '@angular/forms';
+imports: [/*Modules*/
+    ...
+    FormsModule,
+    ReactiveFormsModule
+]
+[file ->cadastro.component.html]
+<form [formGroup]="meuForm" class="row" (submit)="cadastrar($event)">
+...
+<div class="form-group">
+  <label>Título</label>
+  <input formControlName="titulo" <- Important mapear esse
+         name="titulo"
+         [(ngModel)]="foto.titulo"
+         class="form-control"
+         autocomplete="off">
+  <div *ngIf="!meuForm.controls.titulo.valid">
+      <span *ngIf="meuForm.controls.titulo.errors.required"
+            class="form-control alert-danger">
+          Título obrigatório
+      </span>
+      <span *ngIf="meuForm.controls.titulo.errors.minlength"
+            class="form-control alert-danger">
+          Tamanho mínimo 4 caracteres
+      </span>
+  </div>
+</div>
+[file ->cadastro.component.ts]
+import {FormBuilder, FormGroup, Validators} from '@angular/forms';
+...
+meuForm: FormGroup;
+...
+constructor(http: Http, fb: FormBuilder) {
+    this.http = http;
+    this.meuForm = fb.group({
+        titulo: [
+            '',
+            Validators.compose( <- Esse tem 2 validações
+                [
+                    Validators.required,
+                    Validators.minLength(4)
+                ]
+            )
+        ],
+        url: ['', Validators.required],
+        descricao: ['']
+    });
+}
+
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
